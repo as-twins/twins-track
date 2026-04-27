@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TwinTrack - מותאם אישית</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Assistant', sans-serif; transition: background-color 0.5s ease; }
+        .modal-overlay { background: rgba(0,0,0,0.6); position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+    </style>
+</head>
+<body :style="{ backgroundColor: currentBaby.color + '10' }">
+    <div id="app" class="max-w-md mx-auto pb-10 min-h-screen p-4">
+        
+        <header class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-slate-800">TwinTrack 🍼</h1>
+            <button @click="showSettings = true" class="text-2xl">⚙️</button>
+        </header>
+
+        <div class="grid grid-cols-2 gap-3 mb-8">
+            <div v-for="b in babies" :key="b.id" 
+                 class="bg-white p-4 rounded-3xl shadow-sm border-b-4"
+                 :style="{ borderColor: b.color }">
+                <p class="text-sm font-bold text-slate-500">{{ b.name }}</p>
+                <div v-if="getLastFeeding(b.name)" class="mt-1">
+                    <p class="text-2xl font-black text-slate-800">{{ formatTime(getLastFeeding(b.name).startTime) }}</p>
+                    <p class="text-xs text-slate-400">לפני {{ getTimeAgo(getLastFeeding(b.name).startTime) }}</p>
+                </div>
+                <p v-else class="text-xs text-slate-300 mt-2 italic">טרם נרשמה האכלה</p>
+            </div>
+        </div>
+
+        <div class="flex gap-4 mb-8">
+            <button v-for="b in babies" :key="b.id" @click="currentBabyId = b.id"
+                :class="['flex-1 p-4 rounded-2xl bg-white shadow-md transition-all border-2']"
+                :style="{ borderColor: currentBabyId === b.id ? b.color : 'transparent', transform: currentBabyId === b.id ? 'scale(1.05)' : 'scale(1)' }">
+                <span class="text-3xl block mb-1">👶</span>
+                <span class="font-bold" :style="{ color: currentBabyId === b.id ? b.color : '#64748b' }">{{ b.name }}</span>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <button v-for="action in actionButtons" @click="quickLog(action.id)"
+                class="p-6 rounded-2xl border bg-white shadow-sm flex flex-col items-center active:scale-95 transition-transform"
+                :style="{ color: currentBaby.color, borderColor: currentBaby.color + '40' }">
+                <span class="text-3xl mb-1">{{ action.icon }}</span>
+                <span class="font-bold text-slate-700">{{ action.label }}</span>
+            </button>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-sm p-6">
+            <h3 class="font-bold text-lg mb-4 text-slate-800">פעולות אחרונות</h3>
+            <div class="space-y-4">
+                <div v-for="log in filteredLogs" :key="log.id" class="flex items-center gap-3 border-b border-slate-50 pb-3">
+                    <div class="w-2 h-10 rounded-full" :style="{ backgroundColor: getBabyColor(log.babyName) }"></div>
+                    <div class="flex-1">
+                        <p class="font-bold text-slate-700">{{ log.babyName }} - {{ getActionName(log.action) }}</p>
+                        <p class="text-xs text-slate-400">{{ formatTime(log.startTime) }}</p>
+                    </div>
+                    <button @click="deleteLog(log.id)" class="opacity-30 hover:opacity-100 text-xs text-red-500">מחיקה</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showSettings" class="modal-overlay" @click.self="showSettings = false">
+            <div class="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl overflow-y-auto max-h-[90vh]">
+                <h3 class="font-bold text-xl mb-6 text-center">הגדרות תאומים ⚙️</h3>
+                <div v-for="(b, index) in babies" :key="b.id" class="mb-8 p-4 bg-slate-50 rounded-2xl">
+                    <label class="block text-sm font-bold mb-2">שם תינוק {{ index + 1 }}:</label>
+                    <input v-model="b.name" class="w-full p-3 rounded-xl border mb-4 focus:ring-2" :style="{ borderColor: b.color }">
+                    
+                    <label class="block text-sm font-bold mb-2">צבע זיהוי:</label>
+                    <div class="flex gap-2">
+                        <button v-for="color in colorPalette" :key="color"
+                            @click="b.color = color"
+                            class="w-8 h-8 rounded-full border-2"
+                            :style="{ backgroundColor: color, borderColor: b.color === color ? '#000' : 'transparent' }">
+                        </button>
+                    </div>
+                </div>
+                <button @click="saveSettings" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold mt-4 shadow-lg">שמור וסגור</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const babies = ref([
+                    { id: 1, name: 'תינוק 1', color: '#3b82f6' },
+                    { id: 2, name: 'תינוק 2', color: '#ec4899' }
+                ]);
+                const currentBabyId = ref(1);
+                const logs = ref([]);
+                const showSettings = ref(false);
+                const colorPalette = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+
+                const actionButtons = [
+                    { id: 'bottle', icon: '🍼', label: 'בקבוק' },
+                    { id: 'diaper', icon: '🧷', label: 'טיטול' },
+                    { id: 'left', icon: '🤱', label: 'שמאל' },
+                    { id: 'right', icon: '🤱', label: 'ימין' }
+                ];
+
+                const currentBaby = computed(() => babies.value.find(b => b.id === currentBabyId.value));
+
+                const quickLog = (action) => {
+                    const log = {
+                        id: Date.now(),
+                        babyName: currentBaby.value.name,
+                        action: action,
+                        startTime: new Date().toISOString()
+                    };
+                    logs.value.unshift(log);
+                    saveData();
+                };
+
+                const getLastFeeding = (babyName) => {
+                    return logs.value.find(l => l.babyName === babyName && ['bottle', 'left', 'right'].includes(l.action));
+                };
+
+                const getTimeAgo = (iso) => {
+                    const diff = Math.floor((new Date() - new Date(iso)) / 1000 / 60); // minutes
+                    if (diff < 60) return `${diff} דק'`;
+                    return `${Math.floor(diff/60)} ש' ו-${diff%60} דק'`;
+                };
+
+                const formatTime = (iso) => new Date(iso).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                const getActionName = (a) => ({ left: 'צד שמאל', right: 'צד ימין', bottle: 'בקבוק', diaper: 'טיטול' }[a]);
+                const getBabyColor = (name) => babies.value.find(b => b.name === name)?.color || '#ccc';
+
+                const deleteLog = (id) => { if(confirm('למחוק?')) { logs.value = logs.value.filter(l => l.id !== id); saveData(); } };
+
+                const saveData = () => {
+                    localStorage.setItem('twins_v3_logs', JSON.stringify(logs.value));
+                    localStorage.setItem('twins_v3_config', JSON.stringify(babies.value));
+                };
+
+                const saveSettings = () => {
+                    saveData();
+                    showSettings.value = false;
+                };
+
+                onMounted(() => {
+                    const savedLogs = localStorage.getItem('twins_v3_logs');
+                    const savedConfig = localStorage.getItem('twins_v3_config');
+                    if (savedLogs) logs.value = JSON.parse(savedLogs);
+                    if (savedConfig) babies.value = JSON.parse(savedConfig);
+                });
+
+                return { 
+                    babies, currentBabyId, currentBaby, logs, showSettings, colorPalette, actionButtons,
+                    quickLog, getLastFeeding, getTimeAgo, formatTime, getActionName, getBabyColor, deleteLog, saveSettings,
+                    filteredLogs: computed(() => logs.value.slice(0, 15))
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
