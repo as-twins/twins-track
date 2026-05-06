@@ -9,14 +9,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Assistant', sans-serif; background-color: #f8fafc; padding-bottom: 40px; }
+        body { font-family: 'Assistant', sans-serif; background-color: #f8fafc; padding-bottom: 40px; transition: background-color 0.4s; }
         .modal-overlay { background: rgba(0,0,0,0.7); position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
         .active-nursing { animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
         @media print { .no-print { display: none !important; } }
     </style>
 </head>
-<body :dir="lang === 'he' ? 'rtl' : 'ltr'" :class="lang === 'he' ? 'text-right' : 'text-left'">
+<body :dir="lang === 'he' ? 'rtl' : 'ltr'" :style="{ backgroundColor: currentBaby.color + '05' }">
     <div id="app" class="max-w-md mx-auto p-4">
         
         <header class="flex justify-between items-center mb-4 no-print">
@@ -28,13 +28,13 @@
         </header>
 
         <div id="report-content">
-            <div v-if="activeTimer" class="mb-6 p-5 rounded-3xl bg-blue-600 text-white shadow-xl active-nursing no-print">
+            <div v-if="activeTimer" class="mb-6 p-5 rounded-3xl text-white shadow-xl active-nursing no-print" :style="{ backgroundColor: currentBaby.color }">
                 <div class="flex justify-between items-center text-center">
                     <div class="flex-1">
                         <p class="text-sm opacity-90">{{ activeTimer.babyName }} - {{ t(activeTimer.side) }}</p>
                         <p class="text-4xl font-mono font-bold">{{ formattedTimer }}</p>
                     </div>
-                    <button @click="stopTimer" class="bg-white text-blue-600 px-6 py-2 rounded-2xl font-bold shadow-md">
+                    <button @click="stopTimer" class="bg-white text-slate-800 px-6 py-2 rounded-2xl font-bold shadow-md">
                         {{ t('stop') }}
                     </button>
                 </div>
@@ -49,10 +49,10 @@
             </div>
 
             <div class="grid grid-cols-2 gap-3 mb-6 no-print">
-                <button @click="startNursing('right')" class="p-4 rounded-2xl bg-white border border-slate-100 flex flex-col items-center shadow-sm active:scale-95">
+                <button @click="startNursing('right')" class="p-4 rounded-2xl bg-white border border-slate-100 flex flex-col items-center shadow-sm active:scale-95" :style="{ color: currentBaby.color }">
                     <span class="text-2xl">🤱</span><span class="text-xs font-bold mt-1 text-slate-600">{{ t('right') }}</span>
                 </button>
-                <button @click="startNursing('left')" class="p-4 rounded-2xl bg-white border border-slate-100 flex flex-col items-center shadow-sm active:scale-95">
+                <button @click="startNursing('left')" class="p-4 rounded-2xl bg-white border border-slate-100 flex flex-col items-center shadow-sm active:scale-95" :style="{ color: currentBaby.color }">
                     <span class="text-2xl">🤱</span><span class="text-xs font-bold mt-1 text-slate-600">{{ t('left') }}</span>
                 </button>
                 <button @click="quickLog('bottle')" class="p-4 rounded-2xl bg-white border border-slate-100 flex flex-col items-center shadow-sm active:scale-95">
@@ -69,7 +69,7 @@
                 </button>
             </div>
 
-            <div v-for="b in babies" :key="b.id" class="mb-8">
+            <div v-for="b in babies" :key="b.id" class="mb-8 report-baby-section">
                 <h2 class="font-bold text-slate-800 mb-2 px-1 flex items-center gap-2">
                     <span class="w-2 h-4 rounded-full" :style="{backgroundColor: b.color}"></span>
                     {{ b.name }}
@@ -81,7 +81,7 @@
                                 <td class="p-4 font-bold text-slate-400 w-20">{{ formatTime(log.startTime) }}</td>
                                 <td class="p-4">
                                     <span class="font-bold text-slate-700">{{ getActionIcon(log.action) }} {{ t(log.action) }}</span>
-                                    <span v-if="log.note" class="text-xs text-slate-400 block">{{ log.note }}</span>
+                                    <span v-if="log.note" class="text-xs text-slate-400 block italic">{{ log.note }}</span>
                                     <span v-if="log.duration" class="text-[10px] text-blue-500 font-bold block">{{ log.duration }} {{ t('min') }}</span>
                                 </td>
                                 <td class="p-4 text-end no-print">
@@ -98,9 +98,9 @@
             <div class="bg-white p-6 rounded-3xl w-80 shadow-2xl">
                 <h3 class="font-bold text-xl mb-4 text-center">{{ t('diaper') }}</h3>
                 <div class="grid grid-cols-1 gap-2">
-                    <button @click="logDiaper('💧 פיפי')" class="p-4 bg-blue-50 rounded-2xl font-bold text-blue-700">💧 פיפי</button>
-                    <button @click="logDiaper('💩 קקי')" class="p-4 bg-orange-50 rounded-2xl font-bold text-orange-700">💩 קקי</button>
-                    <button @click="logDiaper('✨ גם וגם')" class="p-4 bg-emerald-50 rounded-2xl font-bold text-emerald-700">✨ גם וגם</button>
+                    <button @click="logDiaper(t('pee'))" class="p-4 bg-blue-50 rounded-2xl font-bold text-blue-700">{{ t('pee') }}</button>
+                    <button @click="logDiaper(t('poop'))" class="p-4 bg-orange-50 rounded-2xl font-bold text-orange-700">{{ t('poop') }}</button>
+                    <button @click="logDiaper(t('both'))" class="p-4 bg-emerald-50 rounded-2xl font-bold text-emerald-700">{{ t('both') }}</button>
                 </div>
             </div>
         </div>
@@ -108,22 +108,34 @@
         <div v-if="showMedsModal" class="modal-overlay" @click.self="showMedsModal = false">
             <div class="bg-white p-6 rounded-3xl w-80 shadow-2xl text-center">
                 <h3 class="font-bold text-xl mb-4">{{ t('meds') }}</h3>
-                <input v-model="medNote" placeholder="שם תרופה / מינון" class="w-full p-4 border rounded-2xl mb-4 text-center">
-                <button @click="logMeds" class="w-full bg-rose-600 text-white py-4 rounded-2xl font-bold">{{ t('save') }}</button>
+                <input v-model="medNote" :placeholder="t('medPlaceholder')" class="w-full p-4 border rounded-2xl mb-4 text-center outline-none focus:ring-2 ring-rose-200">
+                <button @click="logMeds" class="w-full bg-rose-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-rose-100">{{ t('save') }}</button>
             </div>
         </div>
 
         <div v-if="showSettings" class="modal-overlay" @click.self="showSettings = false">
-            <div class="bg-white p-6 rounded-3xl w-full max-w-sm">
+            <div class="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl overflow-y-auto max-h-[90vh]">
+                <h3 class="font-bold text-xl mb-4">{{ t('settings') }}</h3>
+                
                 <div class="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
-                    <button @click="lang = 'he'" :class="['flex-1 py-2 rounded-lg font-bold', lang === 'he' ? 'bg-white shadow-sm' : 'text-slate-400']">עברית</button>
-                    <button @click="lang = 'en'" :class="['flex-1 py-2 rounded-lg font-bold', lang === 'en' ? 'bg-white shadow-sm' : 'text-slate-400']">English</button>
+                    <button @click="lang = 'he'" :class="['flex-1 py-2 rounded-lg font-bold transition-all', lang === 'he' ? 'bg-white shadow-sm' : 'text-slate-400']">עברית</button>
+                    <button @click="lang = 'en'" :class="['flex-1 py-2 rounded-lg font-bold transition-all', lang === 'en' ? 'bg-white shadow-sm' : 'text-slate-400']">English</button>
                 </div>
-                <div v-for="b in babies" :key="b.id" class="mb-4">
-                    <input v-model="b.name" class="w-full p-3 border rounded-xl" placeholder="שם">
+
+                <div v-for="b in babies" :key="b.id" class="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <label class="text-xs font-bold text-slate-400 mb-2 block uppercase tracking-wider">{{ t('baby') }} {{ b.id }}</label>
+                    <input v-model="b.name" class="w-full p-3 border rounded-xl mb-3 focus:ring-2 outline-none transition-all" :style="{ borderColor: b.color + '40' }" :placeholder="t('namePlaceholder')">
+                    
+                    <div class="flex gap-2 flex-wrap mt-2">
+                        <button v-for="c in colorPalette" :key="c" @click="b.color = c"
+                            class="w-8 h-8 rounded-full border-2 transition-transform active:scale-90"
+                            :style="{ backgroundColor: c, borderColor: b.color === c ? '#334155' : 'transparent' }">
+                        </button>
+                    </div>
                 </div>
-                <button @click="clearAllData" class="w-full text-red-500 text-xs py-2 underline mb-4">{{ t('clearAll') }}</button>
-                <button @click="saveData(); showSettings = false" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold">{{ t('save') }}</button>
+
+                <button @click="clearAllData" class="w-full text-red-400 text-xs py-2 underline mb-4">{{ t('clearAll') }}</button>
+                <button @click="saveData(); showSettings = false" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold shadow-lg">{{ t('save') }}</button>
             </div>
         </div>
     </div>
@@ -132,8 +144,18 @@
         const { createApp, ref, computed, onMounted } = Vue;
 
         const translations = {
-            he: { title: 'TwinTrack', left: 'הנקה שמאל', right: 'הנקה ימין', bottle: 'בקבוק', diaper: 'טיטול', meds: 'תרופה', vitD: 'ויטמין D', stop: 'עצור', min: 'דק\'', save: 'שמור', clearAll: 'מחיקת כל הנתונים' },
-            en: { title: 'TwinTrack', left: 'Nursing Left', right: 'Nursing Right', bottle: 'Bottle', diaper: 'Diaper', meds: 'Meds', vitD: 'Vitamin D', stop: 'Stop', min: 'min', save: 'Save', clearAll: 'Clear All Data' }
+            he: { 
+                title: 'מעקב תאומים', left: 'הנקה שמאל', right: 'הנקה ימין', bottle: 'בקבוק', diaper: 'טיטול', 
+                meds: 'תרופה', vitD: 'ויטמין D', stop: 'עצור', min: 'דק\'', save: 'שמור וסגור', 
+                clearAll: 'מחיקת כל הנתונים', settings: 'הגדרות', baby: 'תינוק', pee: '💧 פיפי', 
+                poop: '💩 קקי', both: '✨ גם וגם', medPlaceholder: 'שם תרופה / מינון', namePlaceholder: 'שם התינוק'
+            },
+            en: { 
+                title: 'Twin Tracker', left: 'Nursing Left', right: 'Nursing Right', bottle: 'Bottle', diaper: 'Diaper', 
+                meds: 'Meds', vitD: 'Vitamin D', stop: 'Stop', min: 'min', save: 'Save & Close', 
+                clearAll: 'Clear All Data', settings: 'Settings', baby: 'Baby', pee: '💧 Pee', 
+                poop: '💩 Poop', both: '✨ Both', medPlaceholder: 'Med name / Dosage', namePlaceholder: 'Baby Name'
+            }
         };
 
         createApp({
@@ -148,15 +170,16 @@
                 const medNote = ref('');
                 const activeTimer = ref(null);
                 const timerSeconds = ref(0);
+                const colorPalette = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#f43f5e'];
                 let timerInterval = null;
 
                 const t = (k) => translations[lang.value][k] || k;
+                const currentBaby = computed(() => babies.value.find(b => b.id === currentBabyId.value));
 
                 window.onbeforeunload = () => "הנתונים עשויים להימחק. האם לצאת?";
 
                 const startNursing = (side) => {
-                    const b = babies.value.find(x => x.id === currentBabyId.value);
-                    activeTimer.value = { babyName: b.name, side, startTime: new Date() };
+                    activeTimer.value = { babyName: currentBaby.value.name, side, startTime: new Date() };
                     timerSeconds.value = 0;
                     timerInterval = setInterval(() => timerSeconds.value++, 1000);
                 };
@@ -170,38 +193,40 @@
                 };
 
                 const logDiaper = (note) => {
-                    const b = babies.value.find(x => x.id === currentBabyId.value);
-                    logs.value.unshift({ id: Date.now(), babyName: b.name, action: 'diaper', startTime: new Date().toISOString(), note });
+                    logs.value.unshift({ id: Date.now(), babyName: currentBaby.value.name, action: 'diaper', startTime: new Date().toISOString(), note });
                     showDiaperModal.value = false;
                     saveData();
                 };
 
+                const openMedsModal = () => {
+                    medNote.value = '';
+                    showMedsModal.value = true;
+                };
+
                 const logMeds = () => {
-                    const b = babies.value.find(x => x.id === currentBabyId.value);
-                    logs.value.unshift({ id: Date.now(), babyName: b.name, action: 'meds', startTime: new Date().toISOString(), note: medNote.value });
+                    logs.value.unshift({ id: Date.now(), babyName: currentBaby.value.name, action: 'meds', startTime: new Date().toISOString(), note: medNote.value });
                     showMedsModal.value = false;
                     saveData();
                 };
 
                 const quickLog = (action) => {
-                    const b = babies.value.find(x => x.id === currentBabyId.value);
-                    logs.value.unshift({ id: Date.now(), babyName: b.name, action, startTime: new Date().toISOString() });
+                    logs.value.unshift({ id: Date.now(), babyName: currentBaby.value.name, action, startTime: new Date().toISOString() });
                     saveData();
                 };
 
                 const exportToPDF = () => {
                     const element = document.getElementById('report-content');
-                    html2pdf().from(element).set({ margin: 10, filename: 'TwinTrack-Report.pdf', jsPDF: { unit: 'mm', format: 'a4' } }).save();
+                    html2pdf().from(element).set({ margin: 10, filename: `TwinTrack-Report-${new Date().toLocaleDateString()}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).save();
                 };
 
                 const clearAllData = () => { if(confirm(t('clearAll') + '?')) { logs.value = []; saveData(); } };
 
-                const saveData = () => localStorage.setItem('twins_final_v8', JSON.stringify({ logs: logs.value, babies: babies.value, lang: lang.value }));
+                const saveData = () => localStorage.setItem('twins_v10_final', JSON.stringify({ logs: logs.value, babies: babies.value, lang: lang.value }));
                 const formatTime = (iso) => new Date(iso).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
                 const getActionIcon = (a) => ({ bottle:'🍼', diaper:'🧷', left:'🤱', right:'🤱', meds:'💊', vitD:'☀️' }[a]);
                 
                 onMounted(() => {
-                    const s = localStorage.getItem('twins_final_v8');
+                    const s = localStorage.getItem('twins_v10_final');
                     if (s) {
                         const d = JSON.parse(s);
                         logs.value = d.logs || [];
@@ -211,10 +236,10 @@
                 });
 
                 return { 
-                    lang, babies, currentBabyId, logs, showSettings, showDiaperModal, showMedsModal, medNote, activeTimer,
-                    t, startNursing, stopTimer, logDiaper, logMeds, quickLog, formatTime, getActionIcon, saveData, clearAllData, exportToPDF,
+                    lang, babies, currentBabyId, currentBaby, logs, showSettings, showDiaperModal, showMedsModal, medNote, activeTimer, colorPalette,
+                    t, startNursing, stopTimer, logDiaper, openMedsModal, logMeds, quickLog, formatTime, getActionIcon, saveData, clearAllData, exportToPDF,
                     deleteLog: (id) => { logs.value = logs.value.filter(l => l.id !== id); saveData(); },
-                    getLogsForBaby: (n) => logs.value.filter(l => l.babyName === n).slice(0, 20),
+                    getLogsForBaby: (n) => logs.value.filter(l => l.babyName === n).slice(0, 30),
                     formattedTimer: computed(() => {
                         const m = Math.floor(timerSeconds.value / 60);
                         const s = timerSeconds.value % 60;
