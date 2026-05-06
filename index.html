@@ -3,137 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TwinTrack Pro - Multi-Lang</title>
+    <title>TwinTrack Pro+ PDF</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Assistant', sans-serif; background-color: #f1f5f9; transition: all 0.3s ease; }
+        body { font-family: 'Assistant', sans-serif; background-color: #f8fafc; padding-bottom: 60px; }
         .modal-overlay { background: rgba(0,0,0,0.7); position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-        [dir="ltr"] .text-right { text-align: left; }
-        [dir="ltr"] .text-left { text-align: right; }
+        @media print { .no-print { display: none; } }
     </style>
 </head>
-<body :dir="lang === 'he' ? 'rtl' : 'ltr'" :class="lang === 'he' ? 'text-right' : 'text-left'">
+<body :dir="lang === 'he' ? 'rtl' : 'ltr'">
     <div id="app" class="max-w-md mx-auto p-4">
         
-        <header class="flex justify-between items-center mb-4">
-            <h1 class="text-2xl font-black text-slate-800">{{ t('title') }} 🍼</h1>
-            <button @click="showSettings = true" class="p-2 bg-white rounded-full shadow text-xl">⚙️</button>
+        <header class="flex justify-between items-center mb-4 no-print">
+            <h1 class="text-2xl font-black text-slate-800">{{ t('title') }} 👶👶</h1>
+            <div class="flex gap-2">
+                <button @click="exportToPDF" class="p-2 bg-emerald-500 text-white rounded-full shadow text-sm">📄</button>
+                <button @click="showSettings = true" class="p-2 bg-white rounded-full shadow">⚙️</button>
+            </div>
         </header>
 
-        <div class="mb-6 flex flex-col items-center bg-white p-4 rounded-3xl shadow-sm">
-            <button @click="toggleListening" 
-                :class="['w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg', isListening ? 'bg-red-500 animate-pulse' : 'bg-blue-600']">
-                <span class="text-2xl text-white">{{ isListening ? '🛑' : '🎤' }}</span>
-            </button>
-            <p class="mt-2 text-xs font-bold text-slate-500 italic">
-                {{ isListening ? t('listening') : t('tapToRecord') }}
-            </p>
-        </div>
+        <div id="report-content">
+            <div v-if="activeTimer" class="mb-6 p-5 rounded-3xl bg-blue-600 text-white shadow-xl no-print">
+                <div class="flex justify-between items-center text-center">
+                    <div class="flex-1">
+                        <p class="text-sm opacity-90">{{ activeTimer.babyName }} - {{ t(activeTimer.side) }}</p>
+                        <p class="text-4xl font-mono font-bold">{{ formattedTimer }}</p>
+                    </div>
+                    <button @click="stopTimer" class="bg-white text-blue-600 px-6 py-2 rounded-2xl font-bold shadow-md">{{ t('stop') }}</button>
+                </div>
+            </div>
 
-        <div class="bg-white rounded-3xl p-4 shadow-sm mb-6 border border-slate-100">
-            <div class="flex gap-2 mb-4">
-                <button v-for="b in babies" :key="b.id" @click="currentBabyId = b.id"
-                    :class="['flex-1 py-2 rounded-xl border-2 transition-all font-bold']"
-                    :style="{ borderColor: currentBabyId === b.id ? b.color : 'transparent', backgroundColor: currentBabyId === b.id ? b.color + '10' : '#f8fafc', color: currentBabyId === b.id ? b.color : '#94a3b8' }">
+            <div class="no-print">
+                <div class="flex gap-2 mb-4 bg-white p-2 rounded-2xl shadow-sm">
+                    <button v-for="b in babies" :key="b.id" @click="currentBabyId = b.id"
+                        :class="['flex-1 py-3 rounded-xl transition-all font-bold']"
+                        :style="{ backgroundColor: currentBabyId === b.id ? b.color : 'transparent', color: currentBabyId === b.id ? 'white' : '#94a3b8' }">
+                        {{ b.name }}
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <button @click="startNursing('right')" class="p-4 rounded-2xl bg-white border border-slate-100 flex flex-col items-center shadow-sm">
+                        <span class="text-2xl">🤱</span><span class="text-xs font-bold mt-1">{{ t('right') }}</span>
+                    </button>
+                    <button @click="startNursing('left')" class="p-4 rounded-2xl bg-white border border-slate-100 flex flex-col items-center shadow-sm">
+                        <span class="text-2xl">🤱</span><span class="text-xs font-bold mt-1">{{ t('left') }}</span>
+                    </button>
+                    <button @click="quickLog('bottle')" class="p-4 rounded-2xl bg-white border border-slate-100 flex flex-col items-center shadow-sm">
+                        <span class="text-2xl">🍼</span><span class="text-xs font-bold mt-1">{{ t('bottle') }}</span>
+                    </button>
+                    <button @click="showDiaperModal = true" class="p-4 rounded-2xl bg-white border border-slate-100 flex flex-col items-center shadow-sm">
+                        <span class="text-2xl">🧷</span><span class="text-xs font-bold mt-1">{{ t('diaper') }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <div v-for="b in babies" :key="b.id" class="mb-8">
+                <h2 class="font-bold text-slate-800 mb-2 px-1 flex items-center gap-2">
+                    <span class="w-2 h-4 rounded-full" :style="{backgroundColor: b.color}"></span>
                     {{ b.name }}
-                </button>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <button v-for="act in actions" @click="quickLog(act.id)"
-                    class="p-4 rounded-xl border border-slate-50 bg-slate-50 flex flex-col items-center active:scale-95">
-                    <span class="text-2xl mb-1">{{ act.icon }}</span>
-                    <span class="text-sm font-bold text-slate-700">{{ t(act.id) }}</span>
-                </button>
+                </h2>
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                    <table class="w-full text-sm">
+                        <tbody class="divide-y divide-slate-50">
+                            <tr v-for="log in getLogsForBaby(b.name)" :key="log.id">
+                                <td class="p-4 font-bold text-slate-400 w-20">{{ formatTime(log.startTime) }}</td>
+                                <td class="p-4">
+                                    <span class="font-bold text-slate-700">{{ getActionIcon(log.action) }} {{ t(log.action) }}</span>
+                                    <span v-if="log.note" class="text-xs text-slate-400 block">{{ log.note }}</span>
+                                    <span v-if="log.duration" class="text-[10px] text-blue-500 font-bold block">{{ log.duration }} {{ t('min') }}</span>
+                                </td>
+                                <td class="p-4 text-end no-print">
+                                    <button @click="deleteLog(log.id)" class="text-slate-200">✕</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <div v-for="b in babies" :key="b.id" class="mb-8">
-            <div class="flex items-center gap-2 mb-3">
-                <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: b.color }"></div>
-                <h2 class="font-bold text-lg text-slate-800">{{ t('journalOf') }} {{ b.name }}</h2>
-            </div>
-            <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
-                <table class="w-full text-sm">
-                    <thead class="bg-slate-50 text-slate-500">
-                        <tr>
-                            <th class="p-3 text-start">{{ t('time') }}</th>
-                            <th class="p-3 text-center">{{ t('action') }}</th>
-                            <th class="p-3 text-end">{{ t('edit') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-50">
-                        <tr v-for="log in getLogsForBaby(b.name)" :key="log.id">
-                            <td class="p-3 font-medium">{{ formatTime(log.startTime) }}</td>
-                            <td class="p-3 text-center">
-                                <span class="bg-slate-50 px-2 py-1 rounded-md text-xs">{{ getActionIcon(log.action) }} {{ t(log.action) }}</span>
-                            </td>
-                            <td class="p-3 text-end">
-                                <button @click="openEdit(log)" class="text-blue-500">✏️</button>
-                                <button @click="deleteLog(log.id)" class="text-red-300 ms-2">🗑️</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div v-if="showDiaperModal" class="modal-overlay" @click.self="showDiaperModal = false">
+            <div class="bg-white p-6 rounded-3xl w-80 shadow-2xl">
+                <h3 class="font-bold text-xl mb-4 text-center">מה היה בטיטול?</h3>
+                <div class="grid grid-cols-1 gap-2">
+                    <button @click="logDiaper('💧 פיפי')" class="p-4 bg-blue-50 rounded-2xl font-bold text-blue-700">💧 פיפי</button>
+                    <button @click="logDiaper('💩 קקי')" class="p-4 bg-orange-50 rounded-2xl font-bold text-orange-700">💩 קקי</button>
+                    <button @click="logDiaper('✨ גם וגם')" class="p-4 bg-emerald-50 rounded-2xl font-bold text-emerald-700">✨ גם וגם</button>
+                </div>
             </div>
         </div>
 
         <div v-if="showSettings" class="modal-overlay" @click.self="showSettings = false">
-            <div class="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl overflow-y-auto max-h-[90vh]">
-                <h3 class="font-bold text-xl mb-4">{{ t('settings') }}</h3>
-                
-                <div class="mb-6 p-4 bg-blue-50 rounded-2xl">
-                    <label class="block text-sm font-bold mb-2">{{ t('chooseLang') }}:</label>
-                    <div class="flex gap-2">
-                        <button @click="lang = 'he'" :class="['flex-1 p-2 rounded-lg font-bold', lang === 'he' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600']">עברית</button>
-                        <button @click="lang = 'en'" :class="['flex-1 p-2 rounded-lg font-bold', lang === 'en' ? 'bg-blue-600 text-white' : 'bg-white text-blue-600']">English</button>
-                    </div>
+            <div class="bg-white p-6 rounded-3xl w-full max-w-sm">
+                <h3 class="font-bold text-xl mb-4">הגדרות</h3>
+                <div v-for="b in babies" :key="b.id" class="mb-4">
+                    <input v-model="b.name" class="w-full p-3 border rounded-xl" placeholder="שם">
                 </div>
-
-                <div v-for="b in babies" :key="b.id" class="mb-6 p-4 bg-slate-50 rounded-2xl">
-                    <input v-model="b.name" class="w-full p-3 rounded-xl border mb-3" :placeholder="t('babyName')">
-                    <input type="color" v-model="b.color" class="w-full h-10 rounded-lg cursor-pointer">
-                </div>
-                
-                <button @click="saveData(); showSettings = false" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold">{{ t('save') }}</button>
-            </div>
-        </div>
-
-        <div v-if="editingItem" class="modal-overlay">
-            <div class="bg-white p-6 rounded-3xl w-80 shadow-2xl">
-                <h3 class="font-bold text-xl mb-4 text-center">{{ t('editLog') }}</h3>
-                <input type="time" v-model="editingItem.time" class="w-full p-4 border rounded-xl mb-4 text-center text-2xl font-mono">
-                <select v-model="editingItem.action" class="w-full p-4 border rounded-xl mb-6 bg-white">
-                    <option v-for="a in actions" :value="a.id">{{ a.icon }} {{ t(a.id) }}</option>
-                </select>
-                <div class="flex gap-2">
-                    <button @click="saveEdit" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">{{ t('save') }}</button>
-                    <button @click="editingItem = null" class="flex-1 bg-slate-100 py-3 rounded-xl">{{ t('cancel') }}</button>
-                </div>
+                <button @click="clearAllData" class="w-full bg-red-50 text-red-600 py-3 rounded-xl mb-4 text-sm font-bold">🗑️ מחק את כל הנתונים</button>
+                <button @click="saveData(); showSettings = false" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold">שמור וסגור</button>
             </div>
         </div>
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted, watch } = Vue;
-
-        const translations = {
-            he: {
-                title: 'מעקב תאומים', settings: 'הגדרות', chooseLang: 'בחר שפה', babyName: 'שם התינוק', save: 'שמור וסגור', 
-                listening: 'מקשיב... (למשל: "תינוק 1 בקבוק")', tapToRecord: 'לחצי להקלטה קולית',
-                bottle: 'בקבוק', diaper: 'טיטול', left: 'צד שמאל', right: 'צד ימין',
-                journalOf: 'היומן של', time: 'שעה', action: 'פעולה', edit: 'עריכה',
-                editLog: 'עריכת רשומה', cancel: 'ביטול'
-            },
-            en: {
-                title: 'TwinTrack', settings: 'Settings', chooseLang: 'Language', babyName: 'Baby Name', save: 'Save & Close',
-                listening: 'Listening... (e.g. "Baby 1 bottle")', tapToRecord: 'Tap to record voice',
-                bottle: 'Bottle', diaper: 'Diaper', left: 'Left Side', right: 'Right Side',
-                journalOf: 'Journal of', time: 'Time', action: 'Action', edit: 'Edit',
-                editLog: 'Edit Entry', cancel: 'Cancel'
-            }
-        };
+        const { createApp, ref, computed, onMounted } = Vue;
 
         createApp({
             setup() {
@@ -141,86 +118,92 @@
                 const babies = ref([{ id: 1, name: 'תינוק 1', color: '#3b82f6' }, { id: 2, name: 'תינוק 2', color: '#ec4899' }]);
                 const currentBabyId = ref(1);
                 const logs = ref([]);
-                const isListening = ref(false);
-                const editingItem = ref(null);
                 const showSettings = ref(false);
+                const showDiaperModal = ref(false);
+                const activeTimer = ref(null);
+                const timerSeconds = ref(0);
+                let timerInterval = null;
 
-                const actions = [{ id: 'bottle', icon: '🍼' }, { id: 'diaper', icon: '🧷' }, { id: 'left', icon: '🤱' }, { id: 'right', icon: '🤱' }];
+                const t = (k) => ({ title:'TwinTrack', left:'הנקה שמאל', right:'הנקה ימין', bottle:'בקבוק', diaper:'טיטול', stop:'עצור', min:'דק\'' }[k] || k);
 
-                const t = (key) => translations[lang.value][key] || key;
-
-                // Voice Logic
-                const recognition = (window.SpeechRecognition || window.webkitSpeechRecognition) ? new (window.SpeechRecognition || window.webkitSpeechRecognition)() : null;
-                if (recognition) {
-                    recognition.onresult = (e) => {
-                        const text = e.results[0][0].transcript.toLowerCase();
-                        let targetBaby = babies.value[0];
-                        if (text.includes('2') || text.includes('two') || text.includes(babies.value[1].name.toLowerCase())) targetBaby = babies.value[1];
-                        let act = '';
-                        if (text.includes('bottle') || text.includes('בקבוק')) act = 'bottle';
-                        else if (text.includes('diaper') || text.includes('טיטול')) act = 'diaper';
-                        else if (text.includes('left') || text.includes('שמאל')) act = 'left';
-                        else if (text.includes('right') || text.includes('ימין')) act = 'right';
-                        if (act) {
-                            logs.value.unshift({ id: Date.now(), babyName: targetBaby.name, action: act, startTime: new Date().toISOString() });
-                            saveData();
-                        }
-                    };
-                    recognition.onstart = () => isListening.value = true;
-                    recognition.onend = () => isListening.value = false;
-                }
-
-                const toggleListening = () => { 
-                    if (recognition) {
-                        recognition.lang = lang.value === 'he' ? 'he-IL' : 'en-US';
-                        recognition.start();
-                    }
+                // --- הגנה מריענון ---
+                window.onbeforeunload = function() {
+                    return "הנתונים עשויים להימחק אם לא שמרת אותם כ-PDF. האם לצאת?";
                 };
 
-                const quickLog = (action) => {
-                    const baby = babies.value.find(b => b.id === currentBabyId.value);
-                    logs.value.unshift({ id: Date.now(), babyName: baby.name, action, startTime: new Date().toISOString() });
+                const exportToPDF = () => {
+                    const element = document.getElementById('report-content');
+                    const opt = {
+                        margin: 10,
+                        filename: `TwinTrack-Report-${new Date().toLocaleDateString()}.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    html2pdf().set(opt).from(element).save();
+                };
+
+                const startNursing = (side) => {
+                    const b = babies.value.find(x => x.id === currentBabyId.value);
+                    activeTimer.value = { babyName: b.name, side, startTime: new Date() };
+                    timerSeconds.value = 0;
+                    timerInterval = setInterval(() => timerSeconds.value++, 1000);
+                };
+
+                const stopTimer = () => {
+                    const dur = Math.round(timerSeconds.value / 60);
+                    logs.value.unshift({ id: Date.now(), babyName: activeTimer.value.babyName, action: activeTimer.value.side, startTime: activeTimer.value.startTime.toISOString(), duration: dur || 1 });
+                    clearInterval(timerInterval);
+                    activeTimer.value = null;
                     saveData();
                 };
 
-                const openEdit = (log) => {
-                    const d = new Date(log.startTime);
-                    editingItem.value = { ...log, time: d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0') };
+                const logDiaper = (type) => {
+                    const b = babies.value.find(x => x.id === currentBabyId.value);
+                    logs.value.unshift({ id: Date.now(), babyName: b.name, action: 'diaper', startTime: new Date().toISOString(), note: type });
+                    showDiaperModal.value = false;
+                    saveData();
                 };
 
-                const saveEdit = () => {
-                    const idx = logs.value.findIndex(l => l.id === editingItem.value.id);
-                    if (idx !== -1) {
-                        const d = new Date(logs.value[idx].startTime);
-                        const [h, m] = editingItem.value.time.split(':');
-                        d.setHours(h, m);
-                        logs.value[idx].startTime = d.toISOString();
-                        logs.value[idx].action = editingItem.value.action;
-                        saveData();
+                const quickLog = (action) => {
+                    const b = babies.value.find(x => x.id === currentBabyId.value);
+                    logs.value.unshift({ id: Date.now(), babyName: b.name, action, startTime: new Date().toISOString() });
+                    saveData();
+                };
+
+                const clearAllData = () => {
+                    if(confirm("זהירות! פעולה זו תמחק את כל היסטוריית ההאכלות והטיטולים. האם להמשיך?")) {
+                        if(confirm("בטוחה ב-100%? אי אפשר לשחזר אחרי המחיקה.")) {
+                            logs.value = [];
+                            saveData();
+                            showSettings.value = false;
+                        }
                     }
-                    editingItem.value = null;
                 };
 
-                const saveData = () => localStorage.setItem('twins_v4', JSON.stringify({ logs: logs.value, babies: babies.value, lang: lang.value }));
+                const saveData = () => localStorage.setItem('twins_v7', JSON.stringify({ logs: logs.value, babies: babies.value }));
+                const formatTime = (iso) => new Date(iso).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                const getActionIcon = (a) => ({ bottle:'🍼', diaper:'🧷', left:'🤱', right:'🤱' }[a]);
                 
                 onMounted(() => {
-                    const saved = localStorage.getItem('twins_v4');
-                    if (saved) {
-                        const data = JSON.parse(saved);
-                        logs.value = data.logs || [];
-                        babies.value = data.babies || babies.value;
-                        lang.value = data.lang || 'he';
+                    const s = localStorage.getItem('twins_v7');
+                    if (s) {
+                        const d = JSON.parse(s);
+                        logs.value = d.logs || [];
+                        babies.value = d.babies || babies.value;
                     }
                 });
 
-                const getLogsForBaby = (name) => logs.value.filter(l => l.babyName === name).slice(0, 5);
-                const formatTime = (iso) => new Date(iso).toLocaleTimeString(lang.value === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' });
-                const getActionIcon = (a) => ({ bottle:'🍼', diaper:'🧷', left:'🤱', right:'🤱' }[a]);
-
                 return { 
-                    lang, babies, currentBabyId, logs, isListening, editingItem, showSettings, actions,
-                    t, toggleListening, quickLog, openEdit, saveEdit, getLogsForBaby, formatTime, getActionIcon, saveData,
-                    deleteLog: (id) => { if(confirm('Delete?')) { logs.value = logs.value.filter(l => l.id !== id); saveData(); } }
+                    lang, babies, currentBabyId, logs, showSettings, showDiaperModal, activeTimer,
+                    t, startNursing, stopTimer, logDiaper, quickLog, formatTime, getActionIcon, saveData, clearAllData, exportToPDF,
+                    deleteLog: (id) => { logs.value = logs.value.filter(l => l.id !== id); saveData(); },
+                    getLogsForBaby: (n) => logs.value.filter(l => l.babyName === n).slice(0, 20),
+                    formattedTimer: computed(() => {
+                        const m = Math.floor(timerSeconds.value / 60);
+                        const s = timerSeconds.value % 60;
+                        return `${m}:${s.toString().padStart(2, '0')}`;
+                    })
                 };
             }
         }).mount('#app');
